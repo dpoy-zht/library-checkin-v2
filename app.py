@@ -47,35 +47,41 @@ def index():
 @app.route("/api/timestamp")
 def api_timestamp():
     """代理获取时间戳（供前端轮询/验证用）"""
-    ok, result = fetch_timestamp()
-    if ok:
-        return jsonify({"success": True, "timestamp": result})
-    return jsonify({"success": False, "msg": result}), 400
+    try:
+        ok, result = fetch_timestamp()
+        if ok:
+            return jsonify({"success": True, "timestamp": result})
+        return jsonify({"success": False, "msg": result}), 400
+    except Exception as e:
+        return jsonify({"success": False, "msg": f"服务器错误: {str(e)}"}), 500
 
 
 @app.route("/api/checkin", methods=["POST"])
 def api_checkin():
     """生成签到链接（后端代理获取时间戳 + 拼接 URL）"""
-    data = request.get_json(silent=True) or {}
-    action_type = str(data.get("type", "1"))
+    try:
+        data = request.get_json(silent=True) or {}
+        action_type = str(data.get("type", "1"))
 
-    if action_type not in ("1", "2", "3"):
-        return jsonify({"success": False, "msg": "无效的操作类型，请选择 1/2/3"}), 400
+        if action_type not in ("1", "2", "3"):
+            return jsonify({"success": False, "msg": "无效的操作类型，请选择 1/2/3"}), 400
 
-    ok, result = fetch_timestamp()
-    if not ok:
-        return jsonify({"success": False, "msg": result}), 400
+        ok, result = fetch_timestamp()
+        if not ok:
+            return jsonify({"success": False, "msg": result}), 400
 
-    timestamp = result
-    url = f"{LIBRARY_CHECKIN_URL}?school={SCHOOL_CODE}&type={action_type}&t={timestamp}"
+        timestamp = result
+        url = f"{LIBRARY_CHECKIN_URL}?school={SCHOOL_CODE}&type={action_type}&t={timestamp}"
 
-    return jsonify({
-        "success": True,
-        "url": url,
-        "type": action_type,
-        "name": TYPE_NAMES[action_type],
-        "timestamp": timestamp,
-    })
+        return jsonify({
+            "success": True,
+            "url": url,
+            "type": action_type,
+            "name": TYPE_NAMES[action_type],
+            "timestamp": timestamp,
+        })
+    except Exception as e:
+        return jsonify({"success": False, "msg": f"服务器错误: {str(e)}"}), 500
 
 
 # ===================== 启动 =====================
