@@ -12,11 +12,14 @@ LIBRARY_TIMESTAMP_API = "https://libst.sdufe.edu.cn/api.php/v3qrtime"
 LIBRARY_CHECKIN_URL   = "http://www.skalibrary.net/wx/scancheck"
 SCHOOL_CODE           = "sdufe"
 
-# 模拟正常浏览器请求头，避免被服务器拦截
+# 模拟微信内置浏览器请求头，绕过 API 来源检查
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Linux; Android 12; Pixel 6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+    "User-Agent": "Mozilla/5.0 (Linux; Android 12; Pixel 6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36 MicroMessenger/8.0.48",
     "Accept": "application/json, text/plain, */*",
     "Accept-Language": "zh-CN,zh;q=0.9",
+    "Referer": "https://libst.sdufe.edu.cn/",
+    "Origin": "https://libst.sdufe.edu.cn",
+    "X-Requested-With": "XMLHttpRequest",
 }
 
 TYPE_NAMES = {"1": "签到入馆", "2": "临时离馆", "3": "签离出馆"}
