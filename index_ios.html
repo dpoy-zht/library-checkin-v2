@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SDUFE 图书馆签到</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+  
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', 'Inter', sans-serif;
+    background: #F2F2F7;
+    color: #000;
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  
+  /* 状态栏 */
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 24px 8px;
+    background: #F2F2F7;
+  }
+  .status-bar .time { font-size: 16px; font-weight: 700; }
+  .status-bar .icons { font-size: 14px; letter-spacing: 2px; }
+  
+  /* 大标题 */
+  .hero {
+    padding: 20px 24px 8px;
+    background: #F2F2F7;
+  }
+  .hero h1 {
+    font-size: 34px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: #000;
+    line-height: 1.2;
+  }
+  .hero .subtitle {
+    font-size: 17px;
+    color: #8E8E93;
+    margin-top: 4px;
+  }
+  
+  /* 内容区 */
+  .content {
+    padding: 16px 16px 140px;
+  }
+  
+  /* 状态卡片 - 蓝色渐变 */
+  .status-card {
+    background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+    border-radius: 18px;
+    padding: 28px 24px;
+    margin-bottom: 24px;
+    color: #FFF;
+    position: relative;
+    overflow: hidden;
+  }
+  .status-card::after {
+    content: '';
+    position: absolute;
+    top: -30px; right: -30px;
+    width: 120px; height: 120px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 50%;
+  }
+  .status-card .label {
+    font-size: 13px;
+    opacity: 0.7;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+  .status-card .value {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .status-card .detail {
+    font-size: 15px;
+    opacity: 0.8;
+  }
+  
+  /* 区域标题 */
+  .section-title {
+    font-size: 13px;
+    color: #8E8E93;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 8px 8px 12px;
+  }
+  
+  /* 操作网格 - 快捷指令风格 */
+  .action-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .action-card {
+    border-radius: 18px;
+    padding: 24px 16px;
+    color: #FFF;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.2s;
+    position: relative;
+    overflow: hidden;
+    min-height: 130px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .action-card:active {
+    transform: scale(0.96);
+  }
+  .action-card.checkin  { background: linear-gradient(135deg, #007AFF, #5AC8FA); }
+  .action-card.tempout  { background: linear-gradient(135deg, #FF9500, #FFCC00); }
+  .action-card.checkout { background: linear-gradient(135deg, #FF3B30, #FF6B6B); }
+  
+  .action-card .icon {
+    font-size: 36px;
+    margin-bottom: 10px;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));
+  }
+  .action-card .name {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .action-card .name-en {
+    font-size: 12px;
+    opacity: 0.85;
+    font-weight: 500;
+  }
+  
+  /* 加载动画 */
+  .loading-overlay {
+    display: none;
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(242,242,247,0.9);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    align-items: center; justify-content: center;
+    flex-direction: column;
+  }
+  .loading-overlay.show { display: flex; }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 3px solid #E5E5EA;
+    border-top-color: #007AFF;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text {
+    margin-top: 16px;
+    font-size: 15px; color: #8E8E93;
+  }
+  
+  /* 结果弹窗 */
+  .result-overlay {
+    display: none;
+    position: fixed; inset: 0; z-index: 60;
+    background: rgba(0,0,0,0.4);
+    align-items: flex-end; justify-content: center;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .result-overlay.show { display: flex; }
+  .result-sheet {
+    background: #F2F2F7;
+    border-radius: 16px 16px 0 0;
+    padding: 20px 16px 40px;
+    width: 100%;
+    max-width: 500px;
+    animation: slideUp 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+  .result-sheet .indicator {
+    width: 36px; height: 5px;
+    background: #E5E5EA;
+    border-radius: 3px;
+    margin: 0 auto 20px;
+  }
+  .result-sheet .icon-big {
+    font-size: 48px;
+    text-align: center;
+    margin-bottom: 12px;
+  }
+  .result-sheet .title {
+    font-size: 22px; font-weight: 700;
+    text-align: center; color: #000;
+    margin-bottom: 8px;
+  }
+  .result-sheet .msg {
+    font-size: 15px; color: #8E8E93;
+    text-align: center;
+    margin-bottom: 24px;
+    line-height: 1.5;
+  }
+  .result-sheet .link-box {
+    background: #E5E5EA;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    word-break: break-all;
+    font-size: 13px; color: #5856D6;
+    font-family: 'SF Mono', 'Menlo', monospace;
+  }
+  .result-sheet .btn-primary {
+    width: 100%; height: 50px;
+    background: #007AFF;
+    color: #FFF; border: none;
+    border-radius: 14px;
+    font-size: 17px; font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 10px;
+    transition: opacity 0.2s;
+  }
+  .result-sheet .btn-primary:active { opacity: 0.7; }
+  .result-sheet .btn-secondary {
+    width: 100%; height: 50px;
+    background: #E5E5EA;
+    color: #007AFF; border: none;
+    border-radius: 14px;
+    font-size: 17px; font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .result-sheet .btn-secondary:active { opacity: 0.7; }
+  
+  /* 底部信息 */
+  .footer {
+    text-align: center;
+    padding: 24px 16px 40px;
+    font-size: 13px;
+    color: #C7C7CC;
+  }
+  
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 100px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.85);
+    color: #FFF;
+    padding: 12px 24px;
+    border-radius: 20px;
+    font-size: 14px; font-weight: 500;
+    z-index: 200;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; }
+  
+  /* 历史记录 */
+  .history-section { margin-bottom: 24px; }
+  .history-item {
+    background: #FFF;
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .history-item .dot {
+    width: 10px; height: 10px;
+    border-radius: 50%; flex-shrink: 0;
+  }
+  .history-item .dot.in  { background: #34C759; }
+  .history-item .dot.out { background: #FF3B30; }
+  .history-item .dot.temp { background: #FF9500; }
+  .history-item .info { flex: 1; }
+  .history-item .info .action-name {
+    font-size: 15px; font-weight: 600;
+    color: #000;
+  }
+  .history-item .info .action-time {
+    font-size: 13px; color: #8E8E93;
+    margin-top: 2px;
+  }
+  .history-item .status-ok {
+    font-size: 13px; color: #34C759;
+    font-weight: 500;
+  }
+  
+  /* 网络错误提示 */
+  .error-banner {
+    display: none;
+    background: #FFF3F3;
+    border: 1px solid #FFD4D4;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin: 0 16px 16px;
+    font-size: 14px; color: #FF3B30;
+    line-height: 1.5;
+  }
+  .error-banner.show { display: block; }
+  .error-banner .retry-btn {
+    color: #007AFF; font-weight: 600;
+    cursor: pointer; margin-left: 4px;
+  }
+</style>
+</head>
+<body>
+
+<!-- 主内容 -->
+<div class="content" id="mainContent">
+  <!-- 状态栏 -->
+  <div class="status-bar">
+    <span class="time" id="statusTime">9:41</span>
+    <span class="icons">📶🔋</span>
+  </div>
+  
+  <!-- 大标题 -->
+  <div class="hero">
+    <h1>图书馆签到</h1>
+    <div class="subtitle">SDUFE Library · 远程签到系统</div>
+  </div>
+  
+  <!-- 网络错误提示 -->
+  <div class="error-banner" id="errorBanner">
+    <span id="errorText">网络错误，无法连接服务器</span>
+    <span class="retry-btn" onclick="retryTimestamp()">重试</span>
+  </div>
+  
+  <!-- 状态卡片 -->
+  <div style="padding: 0 16px;">
+    <div class="status-card" id="statusCard">
+      <div class="label">当前状态</div>
+      <div class="value" id="statusValue">●  未签到</div>
+      <div class="detail" id="statusDetail">连接校园网后自动获取状态</div>
+    </div>
+  </div>
+  
+  <!-- 操作区 -->
+  <div class="section-title">快速操作 · QUICK ACTION</div>
+  <div style="padding: 0 16px;">
+    <div class="action-grid">
+      <div class="action-card checkin" onclick="doAction('1')">
+        <div class="icon">📍</div>
+        <div class="name">签到入馆</div>
+        <div class="name-en">Check In</div>
+      </div>
+      <div class="action-card tempout" onclick="doAction('2')">
+        <div class="icon">🚶</div>
+        <div class="name">临时离馆</div>
+        <div class="name-en">Temp Out</div>
+      </div>
+      <div class="action-card checkout" onclick="doAction('3')">
+        <div class="icon">🚪</div>
+        <div class="name">签离出馆</div>
+        <div class="name-en">Check Out</div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 历史记录 -->
+  <div class="history-section" id="historySection" style="display:none;">
+    <div class="section-title">今日记录 · TODAY</div>
+    <div style="padding: 0 16px;" id="historyList"></div>
+  </div>
+  
+  <div class="footer">
+    SDUFE Library Remote Check-in v2.0<br>
+    请连接校园网 SDUFE WiFi 后使用
+  </div>
+</div>
+
+<!-- 加载动画 -->
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-text">正在获取服务器时间...</div>
+</div>
+
+<!-- 结果弹窗 -->
+<div class="result-overlay" id="resultOverlay" onclick="if(event.target===this)closeResult()">
+  <div class="result-sheet">
+    <div class="indicator"></div>
+    <div class="icon-big" id="resultIcon">✅</div>
+    <div class="title" id="resultTitle">操作成功</div>
+    <div class="msg" id="resultMsg">请点击下方按钮跳转到图书馆完成签到</div>
+    <div class="link-box" id="resultUrl" style="display:none;"></div>
+    <button class="btn-primary" id="resultBtn" onclick="goToLibrary()">📱 跳转到图书馆</button>
+    <button class="btn-secondary" onclick="copyLink()" id="copyBtn">📋 复制链接</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== 时间 =====
+function updateTime(){
+  const now = new Date();
+  let h = now.getHours(), m = now.getMinutes();
+  document.getElementById('statusTime').textContent =
+    h + ':' + (m<10?'0':'') + m;
+}
+updateTime();
+setInterval(updateTime, 30000);
+
+// ===== 状态更新 =====
+function updateStatus(){
+  fetch('https://libst.sdufe.edu.cn/api.php/v3qrtime', {
+    mode: 'cors',
+    cache: 'no-cache'
+  }).then(r=>r.json()).then(d=>{
+    if(d && d.status===1){
+      document.getElementById('errorBanner').classList.remove('show');
+      document.getElementById('statusValue').textContent = '●  已连接';
+      document.getElementById('statusValue').style.color = '#34C759';
+      document.getElementById('statusDetail').textContent = 'API 正常 · 时间戳: ' + d.data;
+    }
+  }).catch(()=>{
+    document.getElementById('errorBanner').classList.add('show');
+  });
+}
+setTimeout(updateStatus, 500);
+setInterval(updateStatus, 60000);
+
+function retryTimestamp(){
+  document.getElementById('errorBanner').classList.remove('show');
+  updateStatus();
+  showToast('正在重试...');
+}
+
+// ===== 核心操作 =====
+let currentUrl = '';
+
+function doAction(type){
+  const names = { '1':'签到入馆', '2':'临时离馆', '3':'签离出馆' };
+  const nameEns = { '1':'Check In', '2':'Temp Out', '3':'Check Out' };
+  
+  document.getElementById('loading').classList.add('show');
+  
+  // 直接在前端获取时间戳（纯前端方案，无需后端）
+  fetch('https://libst.sdufe.edu.cn/api.php/v3qrtime', { mode:'cors', cache:'no-cache' })
+    .then(r=>r.json())
+    .then(d=>{
+      document.getElementById('loading').classList.remove('show');
+      if(!d || d.status!==1){
+        showToast('获取时间戳失败，请确认已连接校园网');
+        return;
+      }
+      const ts = d.data;
+      const url = 'http://www.skalibrary.net/wx/scancheck?school=sdufe&type=' + type + '&t=' + ts;
+      currentUrl = url;
+      
+      // 记录历史
+      addHistory(type, ts);
+      
+      // 显示结果
+      document.getElementById('resultIcon').textContent = '✅';
+      document.getElementById('resultTitle').textContent = names[type] + ' 就绪';
+      document.getElementById('resultMsg').textContent =
+        '时间戳: ' + ts + '\n请在微信中打开链接以完成' + names[type];
+      document.getElementById('resultUrl').style.display = 'block';
+      document.getElementById('resultUrl').textContent = url;
+      document.getElementById('resultOverlay').classList.add('show');
+    })
+    .catch(e=>{
+      document.getElementById('loading').classList.remove('show');
+      document.getElementById('errorBanner').classList.add('show');
+      document.getElementById('errorText').textContent =
+        '网络错误：无法连接图书馆服务器，请确认已连接 SDUFE 校园网';
+    });
+}
+
+function goToLibrary(){
+  if(!currentUrl){ showToast('链接为空'); return; }
+  // 用 window.location 让用户在微信中手动跳转
+  window.location.href = currentUrl;
+}
+
+function copyLink(){
+  if(!currentUrl){ showToast('链接为空'); return; }
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(currentUrl).then(()=> showToast('链接已复制'));
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = currentUrl;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('链接已复制');
+  }
+}
+
+function closeResult(){
+  document.getElementById('resultOverlay').classList.remove('show');
+}
+
+// ===== 历史记录 =====
+function addHistory(type, ts){
+  const names = { '1':'签到入馆', '2':'临时离馆', '3':'签离出馆' };
+  const dots  = { '1':'in', '2':'temp', '3':'out' };
+  
+  document.getElementById('historySection').style.display = 'block';
+  const list = document.getElementById('historyList');
+  const now = new Date();
+  const timeStr = now.getHours() + ':' + (now.getMinutes()<10?'0':'') + now.getMinutes();
+  
+  const item = document.createElement('div');
+  item.className = 'history-item';
+  item.innerHTML =
+    '<div class="dot ' + dots[type] + '"></div>' +
+    '<div class="info">' +
+      '<div class="action-name">' + names[type] + '</div>' +
+      '<div class="action-time">' + timeStr + ' · 时间戳 ' + ts + '</div>' +
+    '</div>' +
+    '<div class="status-ok">✓ 就绪</div>';
+  list.insertBefore(item, list.firstChild);
+}
+
+// ===== Toast =====
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=> t.classList.remove('show'), 2200);
+}
+
+// ===== 点击遮罩关闭弹窗 =====
+document.getElementById('resultOverlay').addEventListener('click', function(e){
+  if(e.target === this) closeResult();
+});
+</script>
+</body>
+</html>
