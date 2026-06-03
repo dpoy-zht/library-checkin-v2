@@ -4,8 +4,16 @@ SDUFE 图书馆远程签到系统 - Flask 后端
 """
 from flask import Flask, render_template, jsonify, request
 import requests
+import os
 
 app = Flask(__name__)
+
+# ========== 修复 PythonAnywhere ProxyError 403 ==========
+# PythonAnywhere 平台有出站代理，requests 会尝试走代理访问外部 HTTPS
+# 导致 ProxyError: Tunnel connection failed: 403 Forbidden
+# 解决方案：禁用代理，强制直连
+os.environ['NO_PROXY'] = '*'
+os.environ['no_proxy'] = '*'
 
 # 图书馆 API
 LIBRARY_TIMESTAMP_API = "https://libst.sdufe.edu.cn/api.php/v3qrtime"
@@ -22,12 +30,15 @@ HEADERS = {
     "X-Requested-With": "XMLHttpRequest",
 }
 
+# 强制 requests 不走代理（双保险）
+PROXIES = {"http": None, "https": None}
+
 TYPE_NAMES = {"1": "签到入馆", "2": "临时离馆", "3": "签离出馆"}
 
 
 def fetch_timestamp():
     """从图书馆 API 获取服务器时间戳，返回 (success: bool, data: str|int)"""
-    resp = requests.get(LIBRARY_TIMESTAMP_API, headers=HEADERS, timeout=10)
+    resp = requests.get(LIBRARY_TIMESTAMP_API, headers=HEADERS, timeout=10, proxies=PROXIES)
     resp.raise_for_status()
     data = resp.json()
     if data.get("status") == 1 and data.get("data"):
